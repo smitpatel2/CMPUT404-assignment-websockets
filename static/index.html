@@ -40,7 +40,7 @@ function debug(str) {
     var debugDiv = document.getElementById('debug');
     debugDiv.innerHTML = "" + str;
 }
-debug("Test");
+//debug("Test");
 
 world = {};
 
@@ -64,7 +64,7 @@ function prepEntity(entity) {
         entity["colour"] = "#FF0000";
     }
     if (!entity["radius"]) {
-        entity["radius"] = 50;
+        entity["radius"] = 10;
     }
     return entity;
 }
@@ -125,10 +125,13 @@ function addEntity(entity, data) {
     world[entity] = data;
     drawNextFrame(); // (but should we?)
     //XXX: Send a XHTML Request that updates the entity you just modified!
+    const message = {[entity]: data}; // create an object with the entity name and data
+    socket.send(JSON.stringify(message)); // send the message object as a string
+
 }
 var counter = 0;
 function addEntityWithoutName(data) {
-    var name = "X"+(counter++)%100;
+    var name = "X"+crypto.randomUUID();
     addEntity(name,data);
 }
 
@@ -230,19 +233,44 @@ mouse = (function() {
 
 // Add the application specific mouse listeners!
 //XXX: TODO Make these prettier!
-mouse.mousedowners.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'blue'});
+mouse.mousedowners.push(function(x, y, clicked, e) {
+    addEntityWithoutName({
+        'x': x,
+        'y': y,
+        'colour': '#7e00b6',
+        'border': {
+            'colour': 'black',
+            'thickness': 2
+        }
+    });
 });
 
-mouse.mouseuppers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'red'});
+// Mouse up listener
+mouse.mouseuppers.push(function(x, y, clicked, e) {
+    addEntityWithoutName({
+        'x': x,
+        'y': y,
+        'colour': '#a300ff',
+        'border': {
+            'colour': 'black',
+            'thickness': 2
+        }
+    });
 });
 
-mouse.mousedraggers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'green',
-                          'radius':10});
+// Mouse drag listener
+mouse.mousedraggers.push(function(x, y, clicked, e) {
+    addEntityWithoutName({
+        'x': x,
+        'y': y,
+        'colour': '#d600ff',
+        'radius': 2,
+        'border': {
+            'colour': 'black',
+            'thickness': 2
+        }
+    });
 });
-
 
 function update() {
     drawFrame();
@@ -254,6 +282,13 @@ function wsSetup() {
     socket = new WebSocket(url);
     socket.onopen = function() {
         //XXX: TODO What are you going to do here?
+	// Log a debug message to the console.
+    	debug("WebSocket Opened");
+
+    	// Fetch the world data using the HTTP protocol.
+    	fetch("http://" + host + "/world") // Send a GET request to the specified URL
+            .then((response) => response.json()) // Parse the response data as JSON
+            .then((data) => world = data); // Assign the resulting object to the "world" variable
     };
     socket.onerror = function(msg) {
         debug("WebSocket Error:" + msg.data);
@@ -261,7 +296,20 @@ function wsSetup() {
     socket.onmessage = function(msg) {  
         try {
             debug("WebSocket Recv:" + msg.data);
-            //XXX: TODO What are you going to do here?            
+            //XXX: TODO What are you going to do here?
+            const data = JSON.parse(msg.data);
+            // Iterate through each entity in the data object
+            for (const entity in data) {
+	       	// If the value of the current entity is "clear"
+    		if (data[entity] == "clear") {
+		    // Clear the contents of the world object
+                    world = {};
+		} 
+		else { // Otherwise, if the value is not "clear"
+		// Update the world object with the current entity and its value
+        	    world[entity] = data[entity];
+    		}
+	    }
         } catch (e) {
             alert("socket on message: " + e);
         }
