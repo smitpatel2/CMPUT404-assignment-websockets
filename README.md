@@ -60,3 +60,6 @@ Contributors
 * Abram Hindle
 * Cole Mackenzie
 * Smit Patel
+
+Other sources. I consulted with:
+* my group-project team,
